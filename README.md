@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+<p align="center">
+  <img src="src/assets/img/logo.png" alt="TravelSplit Logo" width="120" />
+</p>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<h1 align="center">🌍 TravelSplit</h1>
 
-Currently, two official plugins are available:
+<p align="center">
+  <b>Divide y organiza los gastos de tus viajes de forma sencilla y colaborativa.</b>
+</p>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+<p align="center">
+  <a href="https://travelsplit-72d62.web.app" target="_blank">
+    🚀 Ver demo en Firebase
+  </a>
+  &nbsp;|&nbsp;
+  <a href="https://travelsplit.vercel.app" target="_blank">
+    🌐 Ver despliegue en Vercel
+  </a>
+</p>
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ Descripción
 
-## Expanding the ESLint configuration
+**TravelSplit** es una aplicación web diseñada para gestionar los gastos compartidos durante viajes.  
+Permite crear grupos, añadir integrantes, registrar gastos por categorías (comida, estancia, vehículo, otros)  
+y calcular automáticamente los balances y ajustes entre participantes.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+El objetivo es hacer que dividir cuentas de viaje sea **simple, visual y justo**.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🛠️ Tecnologías utilizadas
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Tecnología | Uso principal |
+|-------------|----------------|
+| ⚛️ **React + TypeScript** | Frontend y lógica del cliente |
+| 💨 **TailwindCSS** | Estilos rápidos y responsivos |
+| 🔥 **Firebase Firestore** | Base de datos y almacenamiento |
+| 🌐 **Firebase Hosting / Vercel** | Despliegue en producción |
+| 📊 **Recharts** | Visualización de datos (gráfico de gastos) |
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 Funcionalidades principales
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+✅ Crear y gestionar grupos de viaje  
+✅ Añadir y eliminar participantes  
+✅ Registrar gastos por categorías (Comida, Estancia, Vehículo, Otros)  
+✅ Balance automático de deudas  
+✅ Gráfico interactivo de gastos  
+✅ Modo invitado con almacenamiento local  
+✅ Interfaz moderna, responsive y amigable  
+
+---
+
+
+
+## ⚙️ Instalación local
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/J-Catena/TravelSplit.git
+
+# 2. Entrar al proyecto
+cd TravelSplit
+
+# 3. Instalar dependencias
+npm install
+
+# 4. Iniciar el entorno local
+npm run dev
