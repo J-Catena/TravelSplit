@@ -17,7 +17,7 @@ export interface Expense {
     payer: string;
     amount: number;
     description: string;
-    category: string; // 🔹 Nuevo campo para el concepto (Estancia, Comida, Vehículo, Otros)
+    category: string; 
     createdAt: number;
     participants?: string[];
 }

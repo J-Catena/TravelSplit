@@ -14,6 +14,9 @@ import {
 } from "firebase/firestore";
 import type { AppUser } from "../context/UserContext";
 
+// ──────────────────────────────────────────────
+// Interfaces
+// ──────────────────────────────────────────────
 export interface TravelGroup {
     id?: string;
     name: string;
@@ -22,30 +25,28 @@ export interface TravelGroup {
     createdAt: number;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
+// Utilidades
+// ──────────────────────────────────────────────
 const GUEST_KEY = "groups";
-
 const norm = (s: string) => s.trim().toLowerCase();
 
 function ensureArray<T>(v: unknown, fallback: T[] = []): T[] {
     return Array.isArray(v) ? (v as T[]) : fallback;
 }
 
-function userGroupsCol(user: AppUser) {
-    if (!user.id) throw new Error("ID ausente para usuario registrado.");
-    return collection(db, "users", user.id, "groups");
+// ✅ Usamos colección raíz "groups" en Firestore
+function groupsCollection() {
+    return collection(db, "groups");
 }
 
-function userGroupDoc(user: AppUser, groupId: string) {
-    if (!user.id) throw new Error("ID ausente para usuario registrado.");
-    return doc(db, "users", user.id, "groups", groupId);
+function groupDoc(groupId: string) {
+    return doc(db, "groups", groupId);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 // Crear grupo
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 export async function createGroup(
     user: AppUser,
     data: Omit<TravelGroup, "id" | "createdAt" | "members">
@@ -56,6 +57,7 @@ export async function createGroup(
         createdAt: Date.now(),
     };
 
+    // Invitado → localStorage
     if (user.isGuest) {
         const localGroups = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
         localGroups.push({ ...newGroup, id: crypto.randomUUID() });
@@ -63,18 +65,19 @@ export async function createGroup(
         return;
     }
 
-    await addDoc(userGroupsCol(user), newGroup);
+    // Usuario con Firebase → colección raíz
+    await addDoc(groupsCollection(), newGroup);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 // Obtener grupos
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 export async function getGroups(user: AppUser): Promise<TravelGroup[]> {
     if (user.isGuest) {
         return JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
     }
 
-    const snapshot = await getDocs(userGroupsCol(user));
+    const snapshot = await getDocs(groupsCollection());
     return snapshot.docs.map(
         (d) =>
         ({
@@ -85,9 +88,9 @@ export async function getGroups(user: AppUser): Promise<TravelGroup[]> {
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 // Eliminar grupo
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 export async function deleteGroup(user: AppUser, id: string) {
     if (user.isGuest) {
         const all: TravelGroup[] = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
@@ -96,22 +99,22 @@ export async function deleteGroup(user: AppUser, id: string) {
         return;
     }
 
-    await deleteDoc(userGroupDoc(user, id));
+    await deleteDoc(groupDoc(id));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 // Añadir miembro
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
 export async function addMember(user: AppUser, groupId: string, member: string) {
     const clean = member.trim();
     if (!clean) return;
 
+    // Invitado → localStorage
     if (user.isGuest) {
         const all: TravelGroup[] = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
         const updated = all.map((g) => {
             if (g.id !== groupId) return g;
             const current = ensureArray<string>(g.members, []);
-            // Evitar duplicados (case-insensitive)
             if (current.some((m) => norm(m) === norm(clean))) return g;
             return { ...g, members: [...current, clean] };
         });
@@ -119,13 +122,13 @@ export async function addMember(user: AppUser, groupId: string, member: string) 
         return;
     }
 
-    // Firebase: garantiza que el doc exista y usa arrayUnion
-    const ref = userGroupDoc(user, groupId);
+    // Firebase
+    const ref = groupDoc(groupId);
     const snap = await getDoc(ref);
+
     if (!snap.exists()) {
-        // si no existe, lo creamos mínimo con este shape
         await setDoc(ref, {
-            name: "Grupo",
+            name: "Grupo sin nombre",
             description: "",
             members: [clean],
             createdAt: Date.now(),
@@ -136,13 +139,14 @@ export async function addMember(user: AppUser, groupId: string, member: string) 
     await updateDoc(ref, { members: arrayUnion(clean) });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Eliminar miembro (PERSISTENTE) ← lo que te faltaba
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────
+// Eliminar miembro
+// ──────────────────────────────────────────────
 export async function removeMember(user: AppUser, groupId: string, member: string) {
     const clean = member.trim();
     if (!clean) return;
 
+    // Invitado → localStorage
     if (user.isGuest) {
         const all: TravelGroup[] = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
         const updated = all.map((g) => {
@@ -157,18 +161,15 @@ export async function removeMember(user: AppUser, groupId: string, member: strin
         return;
     }
 
-    // Firebase: usa arrayRemove
-    const ref = userGroupDoc(user, groupId);
-    // Opcional: si quieres evitar case-insensitive en Firebase, primero lee y normaliza:
+    // Firebase
+    const ref = groupDoc(groupId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return;
+
     const data = snap.data() as TravelGroup;
     const current = ensureArray<string>(data.members, []);
-
-    // Si hay posibles variantes de mayúsculas/minúsculas, filtramos y actualizamos lista completa:
     const target = current.find((m) => norm(m) === norm(clean));
     if (!target) return;
 
-    // Si no quieres reescribir toda la lista, usa arrayRemove con el valor exacto
     await updateDoc(ref, { members: arrayRemove(target) });
 }
