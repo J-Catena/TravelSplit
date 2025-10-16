@@ -55,7 +55,7 @@ export default function GroupDetail() {
                 if (g?.members?.length) setPayer(g.members[0]);
                 const exps = await getExpenses(user, id);
                 setExpenses(exps);
-            } catch (e) {
+            } catch {
                 toast.error("No se pudo cargar el grupo.");
             } finally {
                 setLoading(false);
@@ -63,8 +63,17 @@ export default function GroupDetail() {
         })();
     }, [user, id]);
 
+    // 🔹 FIX: sincronizar payer automáticamente cuando cambian los miembros
+    useEffect(() => {
+        if (group?.members?.length) {
+            if (!payer || !group.members.includes(payer)) {
+                setPayer(group.members[0]);
+            }
+        }
+    }, [group?.members]);
+
     // ────────────────────────────────────────────────────────────────────────────
-    // Derivados memorizados
+    // Cálculos derivados
     // ────────────────────────────────────────────────────────────────────────────
     const balances = useMemo(() => {
         const b: Record<string, number> = {};
@@ -148,18 +157,21 @@ export default function GroupDetail() {
 
             // Optimista + rollback
             const prev = group;
-            const optimistic = { ...group, members: group.members.filter((m) => m !== name) };
+            const optimistic = {
+                ...group,
+                members: group.members.filter((m) => m !== name),
+            };
             setGroup(optimistic);
-            if (payer === name && optimistic.members.length) setPayer(optimistic.members[0]);
+            if (payer === name && optimistic.members.length)
+                setPayer(optimistic.members[0]);
 
             try {
-                await removeMember(user, id, name);           // ✅ persistimos (LocalStorage o Firebase)
-                // re-sync opcional por si hay normalización en el service
+                await removeMember(user, id, name);
                 const refreshed = await getGroups(user);
                 setGroup(refreshed.find((g) => g.id === id) || null);
                 toast.success("Integrante eliminado");
             } catch {
-                setGroup(prev); // rollback
+                setGroup(prev);
                 toast.error("No se pudo eliminar el integrante.");
             }
         },
@@ -167,10 +179,17 @@ export default function GroupDetail() {
     );
 
     const handleAddExpense = useCallback(async () => {
+        // 🔔 Ayuda rápida si no hay integrantes
+        if (!group?.members?.length) {
+            toast("Primero añade al menos un integrante 👥", { icon: "ℹ️" });
+            return;
+        }
+
         if (!payer || !description.trim() || !amount.trim() || !category) {
             toast("Completa todos los campos", { icon: "⚠️" });
             return;
         }
+
         try {
             setSavingExpense(true);
             await addExpense(user!, {
@@ -191,8 +210,7 @@ export default function GroupDetail() {
         } finally {
             setSavingExpense(false);
         }
-    }, [user, id, payer, description, amount, category]);
-
+    }, [user, id, payer, description, amount, category, group?.members?.length]);
 
     // ────────────────────────────────────────────────────────────────────────────
     // UI
@@ -205,6 +223,8 @@ export default function GroupDetail() {
             </div>
         );
     }
+
+    const hasMembers = !!group?.members?.length;
 
     return (
         <div className="relative min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-indigo-50">
@@ -224,7 +244,7 @@ export default function GroupDetail() {
                 </header>
 
                 {/* Integrantes */}
-                <section className={`${cardStyle} transition-all duration-300 hover:shadow-lg`}>
+                <section className={cardStyle}>
                     <h3 className="text-lg sm:text-xl font-semibold text-gray-800 border-b border-gray-100 pb-3 mb-5 flex items-center gap-2">
                         👥 Integrantes
                     </h3>
@@ -241,7 +261,6 @@ export default function GroupDetail() {
                                     </div>
                                     <span className="text-gray-800 font-medium">{m}</span>
                                 </div>
-
                                 <button
                                     onClick={() => handleRemoveMember(m)}
                                     className="text-gray-700 hover:text-red-600 transition-all duration-150 p-1 rounded-full hover:bg-gray-100 active:scale-95"
@@ -276,21 +295,30 @@ export default function GroupDetail() {
                     <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-100 pb-2 mb-4">
                         💸 Nuevo gasto
                     </h3>
+                    {!hasMembers && (
+                        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                            Añade al menos un integrante para poder registrar gastos.
+                        </p>
+                    )}
                     <div className="space-y-3">
                         <select
                             value={payer}
                             onChange={(e) => setPayer(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none"
+                            disabled={!hasMembers}
+                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none disabled:bg-gray-50 disabled:text-gray-400"
                         >
-                            {group?.members.map((m) => (
-                                <option key={m}>{m}</option>
-                            ))}
+                            {!hasMembers ? (
+                                <option>Sin integrantes</option>
+                            ) : (
+                                group?.members.map((m) => <option key={m}>{m}</option>)
+                            )}
                         </select>
 
                         <select
                             value={category}
                             onChange={(e) => setCategory(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none"
+                            disabled={!hasMembers}
+                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none disabled:bg-gray-50 disabled:text-gray-400"
                         >
                             <option value="">Seleccionar categoría</option>
                             <option value="Estancia">Estancia</option>
@@ -303,19 +331,21 @@ export default function GroupDetail() {
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Descripción"
-                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none"
+                            disabled={!hasMembers}
+                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none disabled:bg-gray-50 disabled:text-gray-400"
                         />
                         <input
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             placeholder="Monto (€)"
-                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none"
+                            disabled={!hasMembers}
+                            className="border border-gray-300 rounded-lg px-3 py-2 w-full text-sm focus:ring-2 focus:ring-green-300 outline-none disabled:bg-gray-50 disabled:text-gray-400"
                         />
 
                         <button
                             onClick={handleAddExpense}
-                            disabled={savingExpense}
+                            disabled={savingExpense || !hasMembers}
                             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed hover:from-indigo-600 hover:to-blue-700 text-white font-semibold rounded-lg py-2 shadow-md transition active:scale-[0.98]"
                         >
                             {savingExpense ? "Guardando..." : "Añadir gasto"}
@@ -329,9 +359,15 @@ export default function GroupDetail() {
                         📊 Balance general
                     </h3>
                     {Object.entries(balances).map(([member, balance]) => (
-                        <div key={member} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                        <div
+                            key={member}
+                            className="flex justify-between text-sm border-b border-gray-100 py-1"
+                        >
                             <span className="font-medium text-gray-700">{member}</span>
-                            <span className={`font-semibold ${balance >= 0 ? "text-green-600" : "text-red-500"}`}>
+                            <span
+                                className={`font-semibold ${balance >= 0 ? "text-green-600" : "text-red-500"
+                                    }`}
+                            >
                                 {balance >= 0 ? "+" : ""}
                                 {balance.toFixed(2)} €
                             </span>
@@ -355,11 +391,16 @@ export default function GroupDetail() {
                                         <div className="flex items-center gap-2">
                                             <span
                                                 className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: CATEGORY_COLORS[c.name] || "#CBD5E1" }}
+                                                style={{
+                                                    backgroundColor:
+                                                        CATEGORY_COLORS[c.name] || "#CBD5E1",
+                                                }}
                                             />
                                             <span className="font-medium text-gray-700">{c.name}</span>
                                         </div>
-                                        <span className="text-gray-900 font-semibold">{c.value.toFixed(2)} €</span>
+                                        <span className="text-gray-900 font-semibold">
+                                            {c.value.toFixed(2)} €
+                                        </span>
                                     </li>
                                 ))}
                             </ul>
@@ -375,21 +416,27 @@ export default function GroupDetail() {
                                                 innerRadius={80}
                                                 outerRadius={120}
                                                 labelLine={false}
-                                                // ✅ FIX TS: percent puede venir como unknown. Hacemos guarda de tipo.
                                                 label={(p) => {
                                                     const percent =
-                                                        typeof (p as { percent?: number })?.percent === "number"
+                                                        typeof (p as { percent?: number })?.percent ===
+                                                            "number"
                                                             ? (p as { percent?: number }).percent!
                                                             : 0;
                                                     return `${Math.round(percent * 100)}%`;
                                                 }}
                                             >
                                                 {categoryData.map((entry) => (
-                                                    <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] || "#CBD5E1"} />
+                                                    <Cell
+                                                        key={entry.name}
+                                                        fill={CATEGORY_COLORS[entry.name] || "#CBD5E1"}
+                                                    />
                                                 ))}
                                             </Pie>
                                             <Tooltip
-                                                formatter={(value: number, name: string) => [`${value.toFixed(2)} €`, name]}
+                                                formatter={(value: number, name: string) => [
+                                                    `${value.toFixed(2)} €`,
+                                                    name,
+                                                ]}
                                                 contentStyle={{
                                                     backgroundColor: "rgba(255, 255, 255, 0.9)",
                                                     borderRadius: "10px",
@@ -412,8 +459,15 @@ export default function GroupDetail() {
                         </h3>
                         <ul className="space-y-2 text-sm">
                             {settlements.map((s, i) => {
-                                const match = s.match(/^(.*?)\s*→\s*(.*?):\s*(\d+(\.\d{1,2})?)\s*€$/);
-                                if (!match) return <li key={i} className="text-gray-700">{s}</li>;
+                                const match = s.match(
+                                    /^(.*?)\s*→\s*(.*?):\s*(\d+(\.\d{1,2})?)\s*€$/
+                                );
+                                if (!match)
+                                    return (
+                                        <li key={i} className="text-gray-700">
+                                            {s}
+                                        </li>
+                                    );
                                 const [, p, r, amount] = match;
                                 return (
                                     <li
@@ -421,7 +475,8 @@ export default function GroupDetail() {
                                         className="flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition rounded-lg px-3 py-2"
                                     >
                                         <span className="text-gray-700">
-                                            <span className="font-medium text-gray-800">{p}</span> debe a{" "}
+                                            <span className="font-medium text-gray-800">{p}</span> debe
+                                            a{" "}
                                             <span className="font-medium text-gray-800">{r}</span>
                                         </span>
                                         <span className="font-semibold text-gray-900">
@@ -441,7 +496,9 @@ export default function GroupDetail() {
                     </h3>
 
                     {expenses.length === 0 ? (
-                        <p className="text-sm text-gray-500">Aún no hay gastos registrados.</p>
+                        <p className="text-sm text-gray-500">
+                            Aún no hay gastos registrados.
+                        </p>
                     ) : (
                         <ul className="divide-y divide-gray-100">
                             {expenses.map((e) => (
@@ -450,7 +507,9 @@ export default function GroupDetail() {
                                     className="py-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 hover:bg-gray-50 rounded-lg px-2 transition"
                                 >
                                     <div>
-                                        <span className="font-semibold text-blue-700">{e.payer}</span>{" "}
+                                        <span className="font-semibold text-blue-700">
+                                            {e.payer}
+                                        </span>{" "}
                                         <span className="text-gray-600 italic text-sm">
                                             — {e.description || "Sin descripción"}
                                         </span>
@@ -462,7 +521,8 @@ export default function GroupDetail() {
                                         </span>
                                         <button
                                             onClick={async () => {
-                                                if (!confirm("¿Seguro que deseas eliminar este gasto?")) return;
+                                                if (!confirm("¿Seguro que deseas eliminar este gasto?"))
+                                                    return;
                                                 try {
                                                     await deleteExpense(user!, e.id!);
                                                     const updated = await getExpenses(user!, id!);
