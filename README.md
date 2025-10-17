@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="src/assets/img/logotipo.jpg" alt="TravelSplit Logo" width="120" />
-</p>
 
 <h1 align="center">🌍 TravelSplit</h1>
 
