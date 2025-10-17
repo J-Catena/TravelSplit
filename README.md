@@ -10,7 +10,7 @@
     🚀 Ver demo en Firebase
   </a>
   &nbsp;|&nbsp;
-  <a href="https://travelsplit.vercel.app" target="_blank">
+  <a href="https://travel-split-one.vercel.app" target="_blank">
     🌐 Ver despliegue en Vercel
   </a>
 </p>
